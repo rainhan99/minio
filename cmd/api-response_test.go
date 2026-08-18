@@ -130,7 +130,7 @@ func TestGetURLScheme(t *testing.T) {
 func TestTrackingResponseWriter(t *testing.T) {
 	rw := httptest.NewRecorder()
 	trw := &trackingResponseWriter{ResponseWriter: rw}
-	trw.WriteHeader(123)
+	trw.WriteHeader(http.StatusCreated)
 	if !trw.headerWritten {
 		t.Fatal("headerWritten was not set by WriteHeader call")
 	}
@@ -142,7 +142,7 @@ func TestTrackingResponseWriter(t *testing.T) {
 
 	// Check that WriteHeader and Write were called on the underlying response writer
 	resp := rw.Result()
-	if resp.StatusCode != 123 {
+	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("unexpected status: %v", resp.StatusCode)
 	}
 	body, err := io.ReadAll(resp.Body)
@@ -167,7 +167,7 @@ func TestHeadersAlreadyWritten(t *testing.T) {
 		t.Fatal("headers have not been written yet")
 	}
 
-	trw.WriteHeader(123)
+	trw.WriteHeader(http.StatusNoContent)
 	if !headersAlreadyWritten(trw) {
 		t.Fatal("headers were written")
 	}
@@ -183,7 +183,7 @@ func TestHeadersAlreadyWrittenWrapped(t *testing.T) {
 		t.Fatal("headers have not been written yet")
 	}
 
-	wrap2.WriteHeader(123)
+	wrap2.WriteHeader(http.StatusNoContent)
 	if !headersAlreadyWritten(wrap2) {
 		t.Fatal("headers were written")
 	}
