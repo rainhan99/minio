@@ -54,3 +54,7 @@ s3-verify
 xattr
 xl-meta
 /.worktrees/
+
+# Local tool artifacts
+.codegraph/
+.cursor/
