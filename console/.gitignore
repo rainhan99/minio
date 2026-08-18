@@ -34,6 +34,8 @@ console
 !console/
 
 dist/
+# mds is vendored under mds/ and ships its prebuilt dist/ (see mds/UPSTREAM-SOURCE.md).
+!mds/dist/
 
 # Ignore node_modules
 

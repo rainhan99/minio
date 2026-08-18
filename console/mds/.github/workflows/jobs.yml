@@ -1,0 +1,48 @@
+name: Workflow
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  review-warnings-and-build:
+    name: "Source files are prettified, then verify if build is possible"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - name: Check out Code
+        uses: actions/checkout@v3
+
+      - name: Read .nvmrc
+        id: node_version
+        run: echo "$(cat .nvmrc)" && echo "NVMRC=$(cat .nvmrc)" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NVMRC }}
+
+      - name: Install Dependencies
+        continue-on-error: false
+        run: |
+          corepack enable
+          yarn install
+
+      - name: Check if build is correct
+        continue-on-error: false
+        run: |
+          yarn build
+
+      - name: Check if Files are Prettified
+        continue-on-error: false
+        run: |
+          ./check-prettier.sh
