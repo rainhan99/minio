@@ -974,7 +974,12 @@ func Test_shareObject(t *testing.T) {
 					return "http://someurl", nil
 				},
 			},
-			wantError: errors.New("time: invalid duration \"invalid\""),
+			// Derive the expected error from the same call: Go 1.26 returns
+			// *time.parseDurationError where earlier versions returned errors.New.
+			wantError: func() error {
+				_, err := time.ParseDuration("invalid")
+				return err
+			}(),
 		},
 		{
 			test: "add default expiration if expiration is empty",

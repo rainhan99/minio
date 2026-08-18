@@ -50,7 +50,8 @@ IAM 管理（用户、组、策略、Access Key）与审计所需的部分，以
 
 ## 本地改动记录
 
-迁入时对来源树做的**全部**改动如下，业务代码零修改（未格式化、未 `go generate`、未升级任何依赖）：
+迁入时及紧随其后的 Go 1.26 兼容修复对来源树做的**全部**改动如下，生产业务代码零修改
+（未格式化、未 `go generate`、未升级任何依赖）：
 
 1. `console/go.mod`：仅对齐工具链指令，`go 1.24.0` → `go 1.25.0`，`toolchain go1.24.4` → `toolchain go1.26.6`。
    `go mod tidy -compat=1.21 -diff` 在改动后无输出，依赖图与 `console/go.sum` 均未变化。
@@ -58,6 +59,20 @@ IAM 管理（用户、组、策略、Access Key）与审计所需的部分，以
 3. 权限规范化：module cache 解包为只读（目录 `555`、文件 `444`），迁入后统一为目录 `755`、文件 `644`。
    这是传输属性清理，不改内容。module cache 不保留可执行位，因此 `*.sh` 未带 `+x`；
    `console/Makefile` 一律以 `env bash <script>` 调用，不依赖可执行位。
+
+4. `console/api/user_objects_test.go`：`Test_shareObject` 中 `expires: "invalid"` 用例的 `wantError`
+   改为从 `time.ParseDuration("invalid")` 自身派生，不再硬编码
+   `errors.New("time: invalid duration \"invalid\"")`。
+
+   根因：Go 1.26 起 `time.ParseDuration` 失败时返回 `&parseDurationError{...}`
+   （`$GOROOT/src/time/format.go`），Go 1.25.13 及以前返回 `errors.New(...)` 产生的
+   `*errors.errorString`。该用例用 `reflect.DeepEqual` 比较错误**值**，动态类型不同即判不等，
+   尽管两者 `Error()` 文本完全一致。因此这是 Go 1.26 单边失败：1.25.13 通过、1.26.6 失败。
+
+   仅改测试断言的期望值来源，比较逻辑仍是 `reflect.DeepEqual`，断言强度未削弱——仍然验证
+   `getShareObjectURL` 把 `ParseDuration` 的错误原样传递，而不是吞掉或包装。生产代码未改动。
+   全模块扫描确认该脆弱模式只此一处，且 Go 1.26 下 `go build ./...` 与 `go vet ./...` 均干净。
+   本项在源码迁入之后单独提交，不与迁入混在同一个提交里。
 
 许可与凭证文件 `LICENSE`、`NOTICE`、`CREDITS`，生成器（`hack/`、`swagger.yml`、`.license.tmpl`），
 前端锁文件（`web-app/yarn.lock`、根 `yarn.lock`）以及预构建前端产物 `web-app/build/`
