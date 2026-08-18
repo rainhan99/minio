@@ -25,6 +25,7 @@
 9. 每个任务的提交命令只是建议检查点。执行 `git commit` 前必须再次取得用户明确确认；不得擅自 `git push`。
 10. 数据库 schema 变更、systemd 配置修改和向 `rain@10.0.1.119` 部署前必须按仓库危险操作格式单独确认。
 11. 计划中的路径是目标路径。若迁入的最终 Console 源码已有同职责文件，优先扩展原文件并保持其命名约定，禁止为了匹配计划重复实现。
+12. Console 前端目前无法在本仓库环境中从源码构建。`console/web-app` 的设计系统依赖 `mds` 声明为 git 依赖 `https://github.com/minio/mds.git#v1.1.5`，`web-app/yarn.lock` 锁定提交 `400914d72cb3ffa27d600e0ae1f17ece2182ec22`；2026-08-18 实测该仓库及其 GitHub API 对未认证访问均返回 404（同时 `minio/minio` 返回 200，排除网络与限流），npm 上不存在等价包（`@minio/mds`、`minio-mds` 均 404，npm 的 `mds` 是无关项目），`web-app` 内也没有 `.yarn/cache` 可做 zero-install。`Menu`、`MenuItem` 与全部图标组件均来自 `mds`。因此 Task 3、15、16、17、18、19 中所有 `yarn test`、`yarn build` 与 Playwright 步骤在取得 `mds` 副本前保持阻塞。不得改为跳过前端验证，也不得手工编辑 `console/web-app/build/` 下的生成产物充当替代——该目录由 `console/web-app/assets.go` 的 `//go:embed build/*` 提供服务，手改会使内容与文件名中的内容哈希及 source map 失配。取得副本后必须先按 `console/UPSTREAM-SOURCE.md` 的「前端构建前置条件」完成验证再使用。
 
 ## 锁定基线与来源
 

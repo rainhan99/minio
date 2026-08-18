@@ -78,6 +78,44 @@ IAM 管理（用户、组、策略、Access Key）与审计所需的部分，以
 前端锁文件（`web-app/yarn.lock`、根 `yarn.lock`）以及预构建前端产物 `web-app/build/`
 （被 `web-app/assets.go` 的 `//go:embed build/*` 使用）均已完整保留。
 
+## 前端构建前置条件
+
+**当前环境无法从源码构建 `web-app`。** 2026-08-18 实测结论：
+
+| 事实 | 证据 |
+| --- | --- |
+| `mds` 是 git 依赖 | `web-app/package.json` → `"mds": "https://github.com/minio/mds.git#v1.1.5"` |
+| 锁定提交 | `web-app/yarn.lock` → `commit=400914d72cb3ffa27d600e0ae1f17ece2182ec22` |
+| 上游不可达 | `github.com/minio/mds` 与 `api.github.com/repos/minio/mds` 均返回 HTTP 404；同时 `api.github.com/repos/minio/minio` 返回 200，排除网络与限流 |
+| npm 无等价包 | `@minio/mds`、`minio-mds` 均 404；npm 上的 `mds` 是无关项目（markdown express 路由，v0.1.7） |
+| 无 zero-install 回退 | `web-app/.yarn/` 不存在 |
+| 影响面 | `Menu`、`MenuItem` 与全部图标组件均来自 `mds`，前端任何改动都无法编译、类型检查或打包 |
+
+`yarn install --immutable` 因此失败于 Fetch 阶段。另有一个独立问题：Yarn 4.9.4 配
+git 2.54.0（Apple Git-157）克隆 git 依赖时报 `invalid key:  core.autocrlf`、退出码 128；
+`mds` 是 `yarn.lock` 中唯一的 git 依赖，所以该 bug 只在它身上触发。把副本放入
+`web-app/.yarn/cache/` 做 zero-install 可同时绕开这个 bug。
+
+### 取得副本后的验证要求
+
+`web-app/yarn.lock` 为 `mds` 记录了完整 checksum：
+
+```
+10c0/31c92b4d86e5de5313d2db37f2e2a54fe639271cd146f7be6ce38839b68934d1513a4abb44f0f906aca74e1ae388fa3afea20e548630fee24a9348fa8580dd77
+```
+
+但 `web-app/.yarnrc.yml` 设置了 `checksumBehavior: reset`，其语义是把不匹配的 checksum
+**直接改写**而不是报错，因此默认配置下该 checksum 起不到防篡改作用。使用任何外部获得的
+副本前必须显式覆盖该行为：
+
+```bash
+cd console/web-app
+yarn install --immutable --check-cache   # 并将 checksumBehavior 临时改为 throw
+```
+
+`--check-cache` 强制按上述 checksum 重新校验缓存内容，`--immutable` 保证 `yarn.lock`
+不被修改。两项都通过才可认为副本可信。未通过校验的副本不得使用。
+
 ## 后续维护约定
 
 - 本目录是自主维护的源码，不再从上游拉取更新；如需同步上游，必须重新走一次带校验值记录的迁入流程并更新本文件。
