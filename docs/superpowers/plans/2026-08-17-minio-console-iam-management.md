@@ -963,6 +963,14 @@ git commit -m "feat(console): reconcile and query IAM audit operations"
 **Files:**
 
 - Modify: `console/web-app/src/screens/Console/Console.tsx`
+- Modify: `console/web-app/src/screens/Console/Menu/MenuWrapper.tsx`
+- Modify: `console/web-app/src/screens/Console/ConsoleKBar.tsx`
+- Modify: `console/web-app/src/store.ts`
+- Modify: `console/web-app/src/systemSlice.ts`
+- Modify: `console/web-app/src/common/SecureComponent/permissions.ts`
+- Modify: `console/web-app/src/screens/LoginPage/Login.tsx`
+- Modify: `console/web-app/src/screens/Console/HelpMenu.tsx`
+- Delete: `console/web-app/src/screens/Console/License/`
 - Create: `console/web-app/src/screens/Console/IAM/routes.tsx`
 - Create: `console/web-app/src/screens/Console/IAM/IAMGuard.tsx`
 - Create: `console/web-app/src/screens/Console/IAM/iamPermissions.ts`
@@ -980,6 +988,7 @@ git commit -m "feat(console): reconcile and query IAM audit operations"
 - 完整 IAM Action 集显示 `Identity & Access` 导航和 Users/Groups/Policies/Access Keys/Audit 子项；
 - 缺少入口 Action 集时不显示且直接访问 route 返回禁止页；
 - 页面按钮按精确 Action 启用，前端门控不替代后端 `403`；
+- 侧边栏不再渲染 `Documentation` 与 `License` 入口，且 `/license` 路由不可达；
 - Object Browser 与 Buckets 原路由保持不变。
 
 Run: `(cd "console/web-app" && yarn test IAMGuard.test.tsx --runInBand)`
@@ -990,19 +999,39 @@ Expected: FAIL。
 
 复用历史 `Users`、`Groups`、`Policies` 和 Service Account 页面中的 MinIO Design System 布局、表格和对话框模式，但统一迁入 `screens/Console/IAM/` 并改用新 `/api/v1/iam` client。不要恢复历史全局设置、IDP、监控、KMS 或事件页面。
 
-**Step 3：实现安全请求层**
+**Step 3：移除 License 与 Documentation 导航入口**
+
+`MenuWrapper.tsx` 删除 `endComponent` 中的 `Documentation` 与 `License` 两个 `MenuItem`，并清理随之
+失效的 `DocumentationIcon`、`LicenseIcon` 与 `getLicenseConsent` 引用。`MenuItem` 仍被 `Create Bucket`
+使用，不得一并删除。
+
+同时移除 License 页面本体，避免入口消失后路由仍可直接访问：
+
+- 删除 `console/web-app/src/screens/Console/License/`；
+- `Console.tsx` 移除 `License` 的 `React.lazy` 导入与 `IAM_PAGES.LICENSE` 路由项；
+- `ConsoleKBar.tsx` 移除 `LicenseConsentModal` 的导入与渲染；
+- `store.ts` 移除 `licenseReducer`；
+- `systemSlice.ts` 移除 `licenseAcknowledged` 与 `SubnetInfo` 引用；
+- `common/SecureComponent/permissions.ts` 移除 `IAM_PAGES.LICENSE` 及其权限映射。
+
+其余 Documentation 外链一并去掉：`screens/LoginPage/Login.tsx` 的页脚链接、`HelpMenu.tsx` 的
+`Visit MinIO Documentation` 项与 `Documentation` tab。
+
+不得保留“仅隐藏入口、路由仍可达”的中间状态，也不得为了删除而放宽 `IAM_PAGES` 的类型约束。
+
+**Step 4：实现安全请求层**
 
 `iamApi.ts` 只封装生成 client 的会话/CSRF、UUID 幂等键、稳定错误和 operation ID。禁止自动重试写请求；网络不确定时返回 operation 查询入口。读取可以使用有界重试。
 
 `operationPoller.ts` 只查询已有 operation，使用有界指数退避并允许用户停止；不得重放 mutation。
 
-**Step 4：实现一次性 Secret 对话框**
+**Step 5：实现一次性 Secret 对话框**
 
 Secret 只存于组件局部 state/ref，不进入 Redux。对话框支持一次复制、关闭确认和不可恢复提示；关闭、unmount、路由切换后清空内存引用。禁止 Local Storage、Session Storage、URL 参数和下载历史保存 Secret。
 
 测试 monkey-patch 浏览器 storage，断言创建/复制/关闭期间没有对 Secret 执行持久化写入；rerender 和刷新后不能恢复 Secret。
 
-**Step 5：验证基础前端安全**
+**Step 6：验证基础前端安全**
 
 Run: `(cd "console/web-app" && yarn test IAMGuard.test.tsx iamApi.test.ts OneTimeSecretDialog.test.tsx --runInBand)`
 
@@ -1010,12 +1039,17 @@ Expected: PASS。
 
 Run: `(cd "console/web-app" && yarn build)`
 
-Expected: PASS，TypeScript 和嵌入静态资源生成成功。
+Expected: PASS，TypeScript 和嵌入静态资源生成成功；删除 License 页面后不得残留未解析导入，
+`web-app` 既有死代码检查也不得因此新增告警。
 
-**Step 6：建议提交检查点**
+**Step 7：建议提交检查点**
 
 ```bash
-git add "console/web-app/src/screens/Console/Console.tsx" "console/web-app/src/screens/Console/IAM"
+git add "console/web-app/src/screens/Console/Console.tsx" "console/web-app/src/screens/Console/IAM" \
+  "console/web-app/src/screens/Console/Menu/MenuWrapper.tsx" "console/web-app/src/screens/Console/ConsoleKBar.tsx" \
+  "console/web-app/src/screens/Console/HelpMenu.tsx" "console/web-app/src/screens/LoginPage/Login.tsx" \
+  "console/web-app/src/store.ts" "console/web-app/src/systemSlice.ts" \
+  "console/web-app/src/common/SecureComponent/permissions.ts" "console/web-app/src/screens/Console/License"
 git commit -m "feat(console): restore secure IAM navigation"
 ```
 
