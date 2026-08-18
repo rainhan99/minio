@@ -86,11 +86,12 @@ func newBufPool(sz int) httputil.BufferPool {
 // ServeHTTP forwards HTTP traffic using the configured transport
 func (f *Forwarder) ServeHTTP(w http.ResponseWriter, inReq *http.Request) {
 	outReq := new(http.Request)
-	*outReq = *inReq // includes shallow copies of maps, but we handle this in Director
+	*outReq = *inReq // ReverseProxy clones the request and its headers before Rewrite runs.
 
 	revproxy := httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			f.modifyRequest(req, inReq.URL)
+		Rewrite: func(req *httputil.ProxyRequest) {
+			f.modifyRequest(req.Out, inReq.URL)
+			f.rewriter.Rewrite(req)
 		},
 		BufferPool:    newBufPool(128 << 10),
 		Transport:     f.RoundTripper,
@@ -162,8 +163,6 @@ func (f *Forwarder) modifyRequest(outReq *http.Request, target *url.URL) {
 	outReq.ProtoMajor = 1
 	outReq.ProtoMinor = 1
 
-	f.rewriter.Rewrite(outReq)
-
 	// Disable closeNotify when method GET for http pipelining
 	if outReq.Method == http.MethodGet {
 		quietReq := outReq.WithContext(context.Background())
@@ -171,7 +170,7 @@ func (f *Forwarder) modifyRequest(outReq *http.Request, target *url.URL) {
 	}
 }
 
-// headerRewriter is responsible for removing hop-by-hop headers and setting forwarding headers
+// headerRewriter replaces untrusted client forwarding headers with values derived from the inbound request.
 type headerRewriter struct{}
 
 // Clean up IP in case if it is ipv6 address and it has {zone} information in it, like
@@ -180,30 +179,27 @@ func ipv6fix(clientIP string) string {
 	return strings.Split(clientIP, "%")[0]
 }
 
-func (rw *headerRewriter) Rewrite(req *http.Request) {
-	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+func (rw *headerRewriter) Rewrite(req *httputil.ProxyRequest) {
+	outReq, inReq := req.Out, req.In
+	for _, name := range []string{
+		"Forwarded",
+		xForwardedFor,
+		xForwardedHost,
+		xForwardedPort,
+		xForwardedProto,
+		xRealIP,
+	} {
+		outReq.Header.Del(name)
+	}
+
+	req.SetXForwarded()
+
+	if clientIP, _, err := net.SplitHostPort(inReq.RemoteAddr); err == nil {
 		clientIP = ipv6fix(clientIP)
-		if req.Header.Get(xRealIP) == "" {
-			req.Header.Set(xRealIP, clientIP)
-		}
+		outReq.Header.Set(xRealIP, clientIP)
 	}
 
-	xfProto := req.Header.Get(xForwardedProto)
-	if xfProto == "" {
-		if req.TLS != nil {
-			req.Header.Set(xForwardedProto, "https")
-		} else {
-			req.Header.Set(xForwardedProto, "http")
-		}
-	}
-
-	if xfPort := req.Header.Get(xForwardedPort); xfPort == "" {
-		req.Header.Set(xForwardedPort, forwardedPort(req))
-	}
-
-	if xfHost := req.Header.Get(xForwardedHost); xfHost == "" && req.Host != "" {
-		req.Header.Set(xForwardedHost, req.Host)
-	}
+	outReq.Header.Set(xForwardedPort, forwardedPort(inReq))
 }
 
 func forwardedPort(req *http.Request) string {
