@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -130,6 +131,12 @@ func TestNewEndpoints(t *testing.T) {
 }
 
 func TestCreateEndpoints(t *testing.T) {
+	const (
+		remoteEndpointA = "192.0.2.10"
+		remoteEndpointB = "198.51.100.20"
+		remoteEndpointC = "203.0.113.30"
+	)
+
 	tempGlobalMinioPort := globalMinioPort
 	defer func() {
 		globalMinioPort = tempGlobalMinioPort
@@ -169,8 +176,8 @@ func TestCreateEndpoints(t *testing.T) {
 	args := []string{
 		"http://" + nonLoopBackIP + ":10000/d1",
 		"http://" + nonLoopBackIP + ":10000/d2",
-		"http://example.org:10000/d3",
-		"http://example.com:10000/d4",
+		"http://" + remoteEndpointA + ":10000/d3",
+		"http://" + remoteEndpointB + ":10000/d4",
 	}
 	case1URLs, case1LocalFlags := getExpectedEndpoints(args, "http://"+nonLoopBackIP+":10000/")
 
@@ -179,26 +186,26 @@ func TestCreateEndpoints(t *testing.T) {
 	args = []string{
 		"http://" + nonLoopBackIP + ":10000/d1",
 		"http://" + nonLoopBackIP + ":9000/d2",
-		"http://example.org:10000/d3",
-		"http://example.com:10000/d4",
+		"http://" + remoteEndpointA + ":10000/d3",
+		"http://" + remoteEndpointB + ":10000/d4",
 	}
 	case2URLs, case2LocalFlags := getExpectedEndpoints(args, "http://"+nonLoopBackIP+":10000/")
 
 	case3Endpoint1 := "http://" + nonLoopBackIP + "/d1"
 	args = []string{
 		"http://" + nonLoopBackIP + ":80/d1",
-		"http://example.org:9000/d2",
-		"http://example.com:80/d3",
-		"http://example.net:80/d4",
+		"http://" + remoteEndpointA + ":9000/d2",
+		"http://" + remoteEndpointB + ":80/d3",
+		"http://" + remoteEndpointC + ":80/d4",
 	}
 	case3URLs, case3LocalFlags := getExpectedEndpoints(args, "http://"+nonLoopBackIP+":80/")
 
 	case4Endpoint1 := "http://" + nonLoopBackIP + "/d1"
 	args = []string{
 		"http://" + nonLoopBackIP + ":9000/d1",
-		"http://example.org:9000/d2",
-		"http://example.com:9000/d3",
-		"http://example.net:9000/d4",
+		"http://" + remoteEndpointA + ":9000/d2",
+		"http://" + remoteEndpointB + ":9000/d3",
+		"http://" + remoteEndpointC + ":9000/d4",
 	}
 	case4URLs, case4LocalFlags := getExpectedEndpoints(args, "http://"+nonLoopBackIP+":9000/")
 
@@ -237,7 +244,7 @@ func TestCreateEndpoints(t *testing.T) {
 		{"localhost:9000", []string{"http://localhost/d1"}, "", Endpoints{}, -1, fmt.Errorf("use path style endpoint for SD setup")},
 		{":443", []string{"/d1"}, ":443", Endpoints{Endpoint{URL: &url.URL{Path: mustAbs("/d1")}, IsLocal: true}}, ErasureSDSetupType, nil},
 		{"localhost:10000", []string{"/d1"}, "localhost:10000", Endpoints{Endpoint{URL: &url.URL{Path: mustAbs("/d1")}, IsLocal: true}}, ErasureSDSetupType, nil},
-		{"localhost:9000", []string{"https://127.0.0.1:9000/d1", "https://localhost:9001/d1", "https://example.com/d1", "https://example.com/d2"}, "", Endpoints{}, -1, fmt.Errorf("path '/d1' can not be served by different port on same address")},
+		{"localhost:9000", []string{"https://127.0.0.1:9000/d1", "https://localhost:9001/d1", "https://" + remoteEndpointA + "/d1", "https://" + remoteEndpointA + "/d2"}, "", Endpoints{}, -1, fmt.Errorf("path '/d1' can not be served by different port on same address")},
 
 		// Erasure Setup with PathEndpointType
 		{
@@ -267,28 +274,28 @@ func TestCreateEndpoints(t *testing.T) {
 		{":9000", []string{"http://127.0.0.1:9000/export", "http://" + nonLoopBackIP + ":9000/export", "http://10.0.0.1:9000/export", "http://10.0.0.2:9000/export"}, "", Endpoints{}, -1, fmt.Errorf("path '/export' cannot be served by different address on same server")},
 
 		// DistErasure type
-		{"127.0.0.1:10000", []string{case1Endpoint1, case1Endpoint2, "http://example.org/d3", "http://example.com/d4"}, "127.0.0.1:10000", Endpoints{
+		{"127.0.0.1:10000", []string{case1Endpoint1, case1Endpoint2, "http://" + remoteEndpointA + "/d3", "http://" + remoteEndpointB + "/d4"}, "127.0.0.1:10000", Endpoints{
 			Endpoint{URL: case1URLs[0], IsLocal: case1LocalFlags[0]},
 			Endpoint{URL: case1URLs[1], IsLocal: case1LocalFlags[1]},
 			Endpoint{URL: case1URLs[2], IsLocal: case1LocalFlags[2]},
 			Endpoint{URL: case1URLs[3], IsLocal: case1LocalFlags[3]},
 		}, DistErasureSetupType, nil},
 
-		{"127.0.0.1:10000", []string{case2Endpoint1, case2Endpoint2, "http://example.org/d3", "http://example.com/d4"}, "127.0.0.1:10000", Endpoints{
+		{"127.0.0.1:10000", []string{case2Endpoint1, case2Endpoint2, "http://" + remoteEndpointA + "/d3", "http://" + remoteEndpointB + "/d4"}, "127.0.0.1:10000", Endpoints{
 			Endpoint{URL: case2URLs[0], IsLocal: case2LocalFlags[0]},
 			Endpoint{URL: case2URLs[1], IsLocal: case2LocalFlags[1]},
 			Endpoint{URL: case2URLs[2], IsLocal: case2LocalFlags[2]},
 			Endpoint{URL: case2URLs[3], IsLocal: case2LocalFlags[3]},
 		}, DistErasureSetupType, nil},
 
-		{":80", []string{case3Endpoint1, "http://example.org:9000/d2", "http://example.com/d3", "http://example.net/d4"}, ":80", Endpoints{
+		{":80", []string{case3Endpoint1, "http://" + remoteEndpointA + ":9000/d2", "http://" + remoteEndpointB + "/d3", "http://" + remoteEndpointC + "/d4"}, ":80", Endpoints{
 			Endpoint{URL: case3URLs[0], IsLocal: case3LocalFlags[0]},
 			Endpoint{URL: case3URLs[1], IsLocal: case3LocalFlags[1]},
 			Endpoint{URL: case3URLs[2], IsLocal: case3LocalFlags[2]},
 			Endpoint{URL: case3URLs[3], IsLocal: case3LocalFlags[3]},
 		}, DistErasureSetupType, nil},
 
-		{":9000", []string{case4Endpoint1, "http://example.org/d2", "http://example.com/d3", "http://example.net/d4"}, ":9000", Endpoints{
+		{":9000", []string{case4Endpoint1, "http://" + remoteEndpointA + "/d2", "http://" + remoteEndpointB + "/d3", "http://" + remoteEndpointC + "/d4"}, ":9000", Endpoints{
 			Endpoint{URL: case4URLs[0], IsLocal: case4LocalFlags[0]},
 			Endpoint{URL: case4URLs[1], IsLocal: case4LocalFlags[1]},
 			Endpoint{URL: case4URLs[2], IsLocal: case4LocalFlags[2]},
@@ -338,6 +345,9 @@ func TestCreateEndpoints(t *testing.T) {
 								i+1,
 								testCase.expectedEndpoints[i],
 								endpoint)
+						}
+						if slices.Contains([]string{remoteEndpointA, remoteEndpointB, remoteEndpointC}, endpoint.Hostname()) && endpoint.IsLocal {
+							t.Errorf("Test %d: documentation endpoint %s must be remote", i+1, endpoint.Hostname())
 						}
 					}
 				}
