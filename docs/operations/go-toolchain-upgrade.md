@@ -84,6 +84,26 @@ GOTOOLCHAIN=go1.26.6 go run ./buildscripts/verify-go-toolchain \
 
 `-allow-modified` 只用于开发期确认其他元数据，生成的二进制不得部署。
 
+### 2.3 2026-08-18 门禁实测记录
+
+在 `5988af90ed17098b050cd8a2e0772d2b4b97ba50` 上执行 2.1 与 2.2 的全部命令，结果如下。
+
+| 门禁 | 结果 | 关键证据 |
+| --- | --- | --- |
+| 源码策略 | 通过 | `verify-go-toolchain -root .` 退出码 0 |
+| 双版本 tidy | 通过 | 1.25.13 与 1.26.6 的 `tidy -diff` 均无输出、退出码 0 |
+| Go 1.25.13 最低兼容 | 通过 | `go version` 精确 `go1.25.13`；`vet` 退出码 0；`./cmd` 定向用例 ok；linux amd64/arm64 静态编译成功 |
+| Go 1.26.6 主验证 | 通过 | 全量 `go test -tags kqueue,dev ./cmd -count=1` ok 160.4s；`-race` 下 `TestForwarder` 6 个用例与 `./cmd` 定向用例 ok |
+| `make verifiers` | 通过 | `golangci-lint` 报告 `0 issues`；`check-gen` 无生成物漂移 |
+| 跨平台编译 | 通过 | `cross-compile.sh` 15/15 目标成功 |
+| 独立干净检出发布物 | 通过 | 独立 clone 构建 linux/amd64 后严格检查退出码 0，`vcs.revision` 绑定发布提交且 `vcs.modified=false`；`make build-release` 退出码 0 |
+
+环境前置条件缺失，按缺失记录，不计为通过：
+
+- `typos` 二进制未安装，`make lint` 走 Makefile 自带的跳过分支；`.typos.toml` 的检查依赖 CI 执行。
+- 在 linked worktree 中执行 2.2 的严格检查会按 2.2 已说明的 VCS stamping 行为报告 `vcs.revision`
+  不匹配。该现象由工作区形态引起，不是候选代码缺陷；发布证据必须来自独立干净检出。
+
 ## 3. 开发侧性能信号
 
 ### 3.1 可重复流程
@@ -143,11 +163,18 @@ Stream 失败发生在 `internal/grid/benchmark_test.go` 的 `st.Results()`，�
 | LDAP | `.github/workflows/iam-integrations.yaml` LDAP job | CI artifact | IAM 负责人 | 未执行，阻断 |
 | OIDC | `.github/workflows/iam-integrations.yaml` OIDC job | CI artifact | IAM 负责人 | 未执行，阻断 |
 | 内部 grid | `go test ./internal/grid`；修复后重跑完整 grid benchmark | CI artifact/benchmark 文件 | 存储负责人 | benchmark 阻断 |
+| 转发头与 `aws:SourceIp` | 经上游反向代理访问集群，分别核对直连与内部转发两条路径的审计 `sourceIPAddress`、事件 `Host` 和 `aws:SourceIp` 判定 | 审计日志/策略拒绝记录 | 安全负责人 | 未执行，阻断 |
 | Console 登录/浏览/上传 | Console Playwright 流程和 9001 人工烟测 | Playwright artifact/截图 | Console 负责人 | Console 尚未迁入，阻断 |
 | 容器 CPU quota | 以相同镜像在限制 CPU 的测试容器中核对 `GOMAXPROCS` 和吞吐 | 容器日志/监控截图 | 平台负责人 | 未执行，阻断 |
 
 功能测试同时覆盖单节点和与生产拓扑一致的多节点环境；外部身份源、KMS 和 TLS 使用测试凭据，
 不得把 Secret、Token、私钥或完整 DSN 写入日志或制品。
+
+Forwarder 迁移后删除客户端自报的 `Forwarded`、`X-Forwarded-*` 和 `X-Real-IP`，只从入向连接推导
+这些字段。集群前置可信反向代理时，被内部转发的请求在接收节点上看到的来源是该代理地址，而直连
+同一节点的请求仍沿用代理写入的 `X-Forwarded-For`。`aws:SourceIp` 策略判定、审计 `sourceIPAddress`
+和事件 `Host` 因此可能在两条路径上不一致，上线前必须按真实拓扑确认策略与审计结论符合预期。
+该行为是设计选择，不得通过恢复信任客户端 header 规避。
 
 ## 5. 生产性能门禁
 
