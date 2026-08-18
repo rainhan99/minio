@@ -1,0 +1,40 @@
+name: Go compatibility
+
+on:
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+
+jobs:
+  minimum-supported:
+    name: Go 1.25.13 minimum compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.13
+          check-latest: false
+      - name: Verify exact toolchain
+        run: test "$(go env GOVERSION)" = "go1.25.13"
+      - name: Verify module and focused compatibility suite
+        run: |
+          go mod tidy -compat=1.21 -diff
+          go test ./buildscripts/verify-go-toolchain ./internal/handlers
+          go test -tags kqueue,dev ./cmd -run '^Test(TrackingResponseWriter|HeadersAlreadyWritten|HeadersAlreadyWrittenWrapped|CreateEndpoints)$' -count=1
+      - name: Compile supported Linux targets
+        env:
+          CGO_ENABLED: 0
+        run: |
+          GOOS=linux GOARCH=amd64 go build -tags kqueue -trimpath -o /tmp/minio-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -tags kqueue -trimpath -o /tmp/minio-linux-arm64 .

@@ -14,6 +14,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   mint-test:
     runs-on: mint
@@ -29,7 +32,11 @@ jobs:
       - name: setup-go-step
         uses: actions/setup-go@v5
         with:
-          go-version: 1.24.x
+          go-version: 1.26.6
+          check-latest: false
+
+      - name: Verify exact toolchain
+        run: test "$(go env GOVERSION)" = "go1.26.6"
 
       - name: github sha short
         id: vars
