@@ -131,9 +131,6 @@ const Login = () => {
       );
   }
 
-  let docsURL =
-    "https://docs.min.io/community/minio-object-store/index.html?ref=con";
-
   useEffect(() => {
     dispatch(setHelpName("login"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,10 +154,6 @@ const Login = () => {
               },
             }}
           >
-            <a href={docsURL} target="_blank" rel="noopener">
-              Documentation
-            </a>
-            <span className={"separator"}>|</span>
             <a
               href="https://github.com/minio/minio"
               target="_blank"

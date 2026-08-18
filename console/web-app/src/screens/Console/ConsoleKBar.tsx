@@ -23,7 +23,6 @@ import { selFeatures } from "./consoleSlice";
 import TrafficMonitor from "./Common/ObjectManager/TrafficMonitor";
 import { AppState } from "../../store";
 import AnonymousAccess from "../AnonymousAccess/AnonymousAccess";
-import LicenseConsentModal from "./License/LicenseConsentModal";
 
 const ConsoleKBar = () => {
   const features = useSelector(selFeatures);
@@ -58,7 +57,6 @@ const ConsoleKBar = () => {
     >
       <TrafficMonitor />
       <CommandBar />
-      <LicenseConsentModal />
       <Console />
     </KBarProvider>
   );

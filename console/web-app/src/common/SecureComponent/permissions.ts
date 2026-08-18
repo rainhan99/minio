@@ -179,8 +179,6 @@ export const IAM_PAGES = {
   KMS_KEYS_ADD: "/kms/add-key/",
   KMS_KEYS_IMPORT: "/kms/import-key/",
 
-  /** License **/
-  LICENSE: "/license",
   /* Settings **/
   SETTINGS: "/settings/configurations",
   SETTINGS_VIEW: "/settings/configurations/:option",
@@ -357,10 +355,6 @@ export const IAM_PAGES_PERMISSIONS = {
     IAM_SCOPES.S3_LISTEN_BUCKET_NOTIFICATIONS, // display watch notifications
   ],
   [IAM_PAGES.TOOLS_TRACE]: [IAM_SCOPES.ADMIN_SERVER_TRACE],
-  [IAM_PAGES.LICENSE]: [
-    IAM_SCOPES.ADMIN_SERVER_INFO,
-    IAM_SCOPES.ADMIN_CONFIG_UPDATE,
-  ],
   [IAM_PAGES.KMS]: [IAM_SCOPES.KMS_ALL_ACTIONS],
   [IAM_PAGES.KMS_STATUS]: [IAM_SCOPES.KMS_ALL_ACTIONS, IAM_SCOPES.KMS_STATUS],
   [IAM_PAGES.KMS_KEYS]: [

@@ -17,10 +17,8 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { snackBarMessage, SRInfoStateType } from "./types";
 import { ErrorResponseHandler, IEmbeddedCustomStyles } from "./common/types";
 import { AppState } from "./store";
-import { SubnetInfo } from "./screens/Console/License/types";
 import { isDarkModeOn } from "./utils/stylesUtils";
 import { addBucketAsync } from "./screens/Console/Buckets/ListBuckets/AddBucket/addBucketThunks";
-import { getLicenseConsent } from "./screens/Console/License/utils";
 
 // determine whether we have the sidebar state stored on localstorage
 const initSideBarOpen = localStorage.getItem("sidebarOpen")
@@ -42,7 +40,6 @@ interface SystemState {
   serverDiagnosticStatus: string;
   distributedSetup: boolean;
   siteReplicationInfo: SRInfoStateType;
-  licenseInfo: null | SubnetInfo;
   overrideStyles: null | IEmbeddedCustomStyles;
   anonymousMode: boolean;
   helpName: string;
@@ -51,7 +48,6 @@ interface SystemState {
   darkMode: boolean;
   filterBucketList: string;
   loadBucketsListing: boolean;
-  licenseAcknowledged: boolean;
 }
 
 const initialState: SystemState = {
@@ -77,7 +73,6 @@ const initialState: SystemState = {
   },
   serverDiagnosticStatus: "",
   distributedSetup: false,
-  licenseInfo: null,
   overrideStyles: null,
   anonymousMode: false,
   helpName: "help",
@@ -86,7 +81,6 @@ const initialState: SystemState = {
   darkMode: isDarkModeOn(),
   filterBucketList: "",
   loadBucketsListing: true,
-  licenseAcknowledged: getLicenseConsent(),
 };
 
 const systemSlice = createSlice({
@@ -156,9 +150,6 @@ const systemSlice = createSlice({
     setSiteReplicationInfo: (state, action: PayloadAction<SRInfoStateType>) => {
       state.siteReplicationInfo = action.payload;
     },
-    setSystemLicenseInfo: (state, action: PayloadAction<SubnetInfo | null>) => {
-      state.licenseInfo = action.payload;
-    },
     setHelpName: (state, action: PayloadAction<string>) => {
       state.helpName = action.payload;
     },
@@ -191,9 +182,6 @@ const systemSlice = createSlice({
     setBucketLoadListing: (state, action: PayloadAction<boolean>) => {
       state.loadBucketsListing = action.payload;
     },
-    setAcknowledgeLicense: (state, action: PayloadAction<boolean>) => {
-      state.licenseAcknowledged = action.payload;
-    },
   },
   extraReducers: (builder) => {
     builder.addCase(addBucketAsync.fulfilled, (state, action) => {
@@ -220,7 +208,6 @@ export const {
   setDarkMode,
   setFilterBucket,
   setBucketLoadListing,
-  setAcknowledgeLicense,
 } = systemSlice.actions;
 
 export const selDistSet = (state: AppState) => state.system.distributedSetup;

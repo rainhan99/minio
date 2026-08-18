@@ -49,8 +49,6 @@ const ObjectBrowser = React.lazy(() => import("./ObjectBrowser/ObjectBrowser"));
 
 const Buckets = React.lazy(() => import("./Buckets/Buckets"));
 
-const License = React.lazy(() => import("./License/License"));
-
 const Console = () => {
   const dispatch = useAppDispatch();
   const { pathname = "" } = useLocation();
@@ -120,11 +118,6 @@ const Console = () => {
       customPermissionFnc: () => {
         return hasPermission("*", IAM_PAGES_PERMISSIONS[IAM_PAGES.ADD_BUCKETS]);
       },
-    },
-    {
-      component: License,
-      path: IAM_PAGES.LICENSE,
-      forceDisplay: true,
     },
   ];
 

@@ -23,7 +23,6 @@ import consoleReducer from "./screens/Console/consoleSlice";
 import addBucketsReducer from "./screens/Console/Buckets/ListBuckets/AddBucket/addBucketsSlice";
 import bucketDetailsReducer from "./screens/Console/Buckets/BucketDetails/bucketDetailsSlice";
 import objectBrowserReducer from "./screens/Console/ObjectBrowser/objectBrowserSlice";
-import licenseReducer from "./screens/Console/License/licenseSlice";
 import { objectBrowserWSMiddleware } from "./websockets/objectBrowserWSMiddleware";
 
 var objectsWS: WebSocket;
@@ -35,7 +34,6 @@ const rootReducer = combineReducers({
   addBucket: addBucketsReducer,
   bucketDetails: bucketDetailsReducer,
   objectBrowser: objectBrowserReducer,
-  license: licenseReducer,
 });
 
 export const store = configureStore({
