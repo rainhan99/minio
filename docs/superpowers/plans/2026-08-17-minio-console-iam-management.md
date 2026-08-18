@@ -6,7 +6,7 @@
 
 **架构：** `console/` 保持 `github.com/minio/console` 独立 Go 模块身份，由根模块通过本地 `replace` 嵌入。Console 后端采用应用服务、madmin adapter、审计协调器和 repository ports 分层；MinIO IAM 是实体状态唯一真相源，PostgreSQL 只保存幂等操作控制状态与脱敏审计事件。生产仍仅发布根目录构建的 `minio`，同一进程监听 `9000` 和 `9001`。
 
-**技术栈：** Go 1.24、madmin-go/v3、GORM、PostgreSQL、SQLite（仅带 `iam_sqlite` 构建标签的开发/单元测试）、React 18、TypeScript、Redux Toolkit、Swagger/OpenAPI、Jest、Playwright、systemd user service。
+**技术栈：** 最低 Go 1.25.13、生产 Go 1.26.6、madmin-go/v3、GORM、PostgreSQL、SQLite（仅带 `iam_sqlite` 构建标签的开发/单元测试）、React 18、TypeScript、Redux Toolkit、Swagger/OpenAPI、Jest、Playwright、systemd user service。
 
 **设计依据：** `docs/superpowers/specs/2026-08-17-minio-console-iam-management-design.md`
 
@@ -14,16 +14,17 @@
 
 ## 执行约束
 
-1. 开始实施前先使用 `superpowers:using-git-worktrees` 建立隔离工作区，再使用 `superpowers:test-driven-development`；每个任务严格执行红灯、最小实现、绿灯、重构。
-2. 不手工编辑 Swagger、静态资源或其他生成文件；修改生成源后运行仓库既有生成命令，并提交源文件与生成结果。
-3. 不引入独立生产 Console 二进制、第二个 systemd 单元或浏览器直连 `9000` 的 madmin 凭据。
-4. `console_iam_operations` 和 `console_iam_audit_events` 不保存 IAM 实体副本。IAM 列表、详情和写后确认均从 MinIO 读取。
-5. Secret、密码、Cookie、Token、完整 DSN 和策略正文不得进入数据库、日志、追踪、指标标签、URL、Redux 持久化或浏览器存储。
-6. 生产仅支持共享 PostgreSQL。SQLite adapter 只在 `iam_sqlite` 构建标签下编译，避免生产 `CGO_ENABLED=0` 构建链接 SQLite 驱动。
-7. 生产迁移只运行版本化 SQL；禁止 GORM `AutoMigrate`。
-8. 每个任务的提交命令只是建议检查点。执行 `git commit` 前必须再次取得用户明确确认；不得擅自 `git push`。
-9. 数据库 schema 变更、systemd 配置修改和向 `rain@10.0.1.119` 部署前必须按仓库危险操作格式单独确认。
-10. 计划中的路径是目标路径。若迁入的最终 Console 源码已有同职责文件，优先扩展原文件并保持其命名约定，禁止为了匹配计划重复实现。
+1. 本计划依赖 [Go 工具链兼容升级 Task 0](2026-08-17-go-toolchain-compatibility.md)。Task 0 未通过源码、双版本和独立干净检出发布物门禁前，Task 1 保持阻塞。
+2. 开始实施前先使用 `superpowers:using-git-worktrees` 建立隔离工作区，再使用 `superpowers:test-driven-development`；每个任务严格执行红灯、最小实现、绿灯、重构。
+3. 不手工编辑 Swagger、静态资源或其他生成文件；修改生成源后运行仓库既有生成命令，并提交源文件与生成结果。
+4. 不引入独立生产 Console 二进制、第二个 systemd 单元或浏览器直连 `9000` 的 madmin 凭据。
+5. `console_iam_operations` 和 `console_iam_audit_events` 不保存 IAM 实体副本。IAM 列表、详情和写后确认均从 MinIO 读取。
+6. Secret、密码、Cookie、Token、完整 DSN 和策略正文不得进入数据库、日志、追踪、指标标签、URL、Redux 持久化或浏览器存储。
+7. 生产仅支持共享 PostgreSQL。SQLite adapter 只在 `iam_sqlite` 构建标签下编译，避免生产 `CGO_ENABLED=0` 构建链接 SQLite 驱动。
+8. 生产迁移只运行版本化 SQL；禁止 GORM `AutoMigrate`。
+9. 每个任务的提交命令只是建议检查点。执行 `git commit` 前必须再次取得用户明确确认；不得擅自 `git push`。
+10. 数据库 schema 变更、systemd 配置修改和向 `rain@10.0.1.119` 部署前必须按仓库危险操作格式单独确认。
+11. 计划中的路径是目标路径。若迁入的最终 Console 源码已有同职责文件，优先扩展原文件并保持其命名约定，禁止为了匹配计划重复实现。
 
 ## 锁定基线与来源
 
@@ -91,6 +92,8 @@ type Coordinator interface {
 创建 `buildscripts/verify-console-local-module.sh`，验证：
 
 - `console/go.mod` 的 module 必须为 `github.com/minio/console`；
+- `console/go.mod` 的 `go` 指令必须为 `1.25.0`；
+- `console/go.mod` 的 `toolchain` 指令必须为 `go1.26.6`；
 - 根 `go.mod` 必须包含 `replace github.com/minio/console => ./console`；
 - `go list -m -json github.com/minio/console` 的 `Dir` 必须位于仓库的 `console/`；
 - `console/LICENSE`、`console/NOTICE`、`console/CREDITS` 与来源说明存在；
@@ -110,6 +113,15 @@ Expected: FAIL，报告 `console/go.mod` 或本地 `replace` 缺失。
 
 `console/UPSTREAM-SOURCE.md` 必须记录：模块版本、伪版本对应提交、模块校验值、恢复日期、历史 IAM 参考版本及其校验值、未恢复功能清单。
 
+源码恢复后只对齐模块工具链指令，不在复制步骤升级依赖：
+
+```bash
+(cd "console" && GOTOOLCHAIN=go1.26.6 go mod edit -go=1.25.0 -toolchain=go1.26.6)
+(cd "console" && GOTOOLCHAIN=go1.26.6 go mod tidy -compat=1.21 -diff)
+```
+
+`tidy -diff` 若显示依赖变化，先为实际 Go 1.26 不兼容建立失败测试并单独评估，禁止把依赖升级混入源码迁入。
+
 **Step 4：绑定根模块到本地 Console**
 
 在根 `go.mod` 增加：
@@ -118,7 +130,7 @@ Expected: FAIL，报告 `console/go.mod` 或本地 `replace` 缺失。
 replace github.com/minio/console => ./console
 ```
 
-运行 `go mod tidy -compat=1.21`，仅接受由本地模块切换产生的必要 `go.sum` 变化。
+先运行 `GOTOOLCHAIN=go1.26.6 go mod tidy -compat=1.21 -diff` 审核差异，再执行 tidy；仅接受由本地模块切换产生的必要 `go.sum` 变化。
 
 **Step 5：验证模块来源和子模块基线**
 
@@ -126,9 +138,11 @@ Run: `bash "buildscripts/verify-console-local-module.sh"`
 
 Expected: PASS，`go list` 显示本地 `console/`。
 
-Run: `(cd "console" && go test ./api/... ./pkg/... ./models/...)`
+Run: `(cd "console" && GOTOOLCHAIN=go1.25.13 go test ./api/... ./pkg/... ./models/...)`
 
-Expected: PASS，最终 Console 迁入后行为不变。
+Run: `(cd "console" && GOTOOLCHAIN=go1.26.6 go test ./api/... ./pkg/... ./models/...)`
+
+Expected: 两个受支持工具链均 PASS，最终 Console 迁入后行为不变。
 
 **Step 6：建议提交检查点**
 

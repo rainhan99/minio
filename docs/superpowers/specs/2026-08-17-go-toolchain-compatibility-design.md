@@ -1,20 +1,20 @@
 # MinIO Go 1.25/1.26 工具链兼容升级设计
 
 - 日期：2026-08-17
-- 状态：已确认，等待按 Task 0 实施计划执行
-- 当前根模块：`go 1.24.0`、`toolchain go1.24.8`
-- 当前 Console 基线：`go 1.24.0`、`toolchain go1.24.4`
+- 状态：实施中；源码改造已完成，独立干净检出发布物与部署门禁待执行
+- 当前根模块：`go 1.25.0`、`toolchain go1.26.6`
+- 待迁入 Console 上游基线：`go 1.24.0`、`toolchain go1.24.4`，迁入时必须对齐根模块策略
 - 目标最低兼容版本：Go 1.25.13
 - 目标生产构建版本：Go 1.26.6
 
 ## 1. 背景
 
-当前 MinIO 根模块、最终 Console 模块和 11 个 GitHub Actions 工作流固定在 Go 1.24，
+升级前 MinIO 根模块、最终 Console 模块和 11 个 GitHub Actions 工作流固定在 Go 1.24，
 但 `buildscripts/checkdeps.sh` 仍声称 Go 1.16 即可构建。Go 官方只向最近两个大版本提供
 安全修复；Go 1.26 已在 2026-02-10 发布，因此截至本设计日期受支持的版本是 Go 1.25
 和 Go 1.26，Go 1.24 已退出安全维护窗口。
 
-当前 `toolchain go1.24.8` 不是精确版本锁。`GOTOOLCHAIN=auto` 下，如果本机 Go 比
+升级前的 `toolchain go1.24.8` 不是精确版本锁。`GOTOOLCHAIN=auto` 下，如果本机 Go 比
 `toolchain` 行更新，Go 命令会直接使用本机更新版本。本地使用 Go 1.26.6 运行现有测试时，
 `cmd.TestTrackingResponseWriter` 因 `httptest.ResponseRecorder` 拒绝为 1xx 状态写响应体而
 失败；同一测试在 Go 1.24.8 下通过。这证明现有仓库已经会被较新本地工具链执行，但没有
@@ -180,12 +180,12 @@ header 状态的其他测试可以继续使用非标准三位状态码，但优�
 
 ### 7.3 DNS 确定性
 
-`cmd.TestCreateEndpoints` 当前使用 `example.com`/`example.org` 并可能触发公共 DNS 查询。
-测试应通过可注入 resolver、受控 hosts fixture 或现有 endpoint 分类 seam 返回固定结果；禁止
-修改开发机或 CI 的系统 hosts，也不允许把超时简单扩大。
+升级前 `cmd.TestCreateEndpoints` 使用 `example.com`/`example.org` 并可能触发公共 DNS 查询。
+实现使用 RFC 5737 文档地址表达远端节点，并显式断言这些 endpoint 的 `IsLocal == false`；
+没有为测试引入新的生产 resolver seam，也没有修改开发机或 CI 的系统 hosts。
 
-生产 resolver 行为不改变。新测试必须证明本地/远端 endpoint 分类与错误映射，不测试公共
-DNS 是否在线。
+生产 resolver 行为不改变。测试证明本地/远端 endpoint 分类与错误映射，不测试公共 DNS
+是否在线。
 
 ## 8. CI 验证矩阵
 
@@ -246,6 +246,12 @@ profile 定位，再决定修复、临时 GC opt-out 或暂缓生产升级。
 10. Task 0 验收后再开始原计划 Task 1。
 
 ## 11. 验收标准
+
+截至 2026-08-18 的实施记录：源码策略检查器已经接受当前仓库配置；开发侧
+`BenchmarkRequests` 已取得 Go 1.25.13/1.26.6 各 60 个子项、每项 10 次的完整样本；
+`BenchmarkStream/request/servers=4/par=16` 在两个工具链下均因 `context canceled` 失败，
+因此完整 grid 性能对比保持阻断。独立干净检出的发布物元数据、外部 IAM/KMS/TLS、Console、
+生产性能和部署验证尚未完成，不计为通过。
 
 1. `go.mod` 使用 `go 1.25.0`、`toolchain go1.26.6`。
 2. 迁入后的 `console/go.mod` 使用相同策略。
