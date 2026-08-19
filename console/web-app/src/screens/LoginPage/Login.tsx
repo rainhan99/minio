@@ -27,7 +27,6 @@ import StrategyForm from "./StrategyForm";
 import { getLogoApplicationVariant, getLogoVar } from "../../config";
 import { RedirectRule } from "api/consoleApi";
 import { redirectRules } from "./login.utils";
-import { setHelpName } from "../../systemSlice";
 
 export const getTargetPath = () => {
   let targetPath = "/browser";
@@ -130,11 +129,6 @@ const Login = () => {
         </Box>
       );
   }
-
-  useEffect(() => {
-    dispatch(setHelpName("login"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <Fragment>

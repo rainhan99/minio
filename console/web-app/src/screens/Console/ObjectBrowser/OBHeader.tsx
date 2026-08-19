@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Fragment, useEffect } from "react";
+import React, { Fragment } from "react";
 import { IAM_SCOPES } from "../../../common/SecureComponent/permissions";
 import { SecureComponent } from "../../../common/SecureComponent";
 import { Grid } from "mds";
@@ -27,8 +27,6 @@ import { AppState, useAppDispatch } from "../../../store";
 import FilterObjectsSB from "./FilterObjectsSB";
 import PageHeaderWrapper from "../Common/PageHeaderWrapper/PageHeaderWrapper";
 import ObjectManagerButton from "../Common/ObjectManager/ObjectManagerButton";
-import HelpMenu from "../HelpMenu";
-import { setHelpName } from "../../../systemSlice";
 
 interface IOBHeader {
   bucketName: string;
@@ -74,21 +72,11 @@ const OBHeader = ({ bucketName }: IOBHeader) => {
     </Fragment>
   );
 
-  useEffect(() => {
-    dispatch(setHelpName("object_browser"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <Fragment>
       {!obOnly ? (
         <PageHeaderWrapper
           label={"Object Browser"}
-          actions={
-            <Fragment>
-              <HelpMenu />
-            </Fragment>
-          }
           middleComponent={searchBar}
         />
       ) : (

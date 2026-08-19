@@ -42,8 +42,6 @@ interface SystemState {
   siteReplicationInfo: SRInfoStateType;
   overrideStyles: null | IEmbeddedCustomStyles;
   anonymousMode: boolean;
-  helpName: string;
-  helpTabName: string;
   locationPath: string;
   darkMode: boolean;
   filterBucketList: string;
@@ -75,8 +73,6 @@ const initialState: SystemState = {
   distributedSetup: false,
   overrideStyles: null,
   anonymousMode: false,
-  helpName: "help",
-  helpTabName: "video",
   locationPath: "",
   darkMode: isDarkModeOn(),
   filterBucketList: "",
@@ -150,12 +146,6 @@ const systemSlice = createSlice({
     setSiteReplicationInfo: (state, action: PayloadAction<SRInfoStateType>) => {
       state.siteReplicationInfo = action.payload;
     },
-    setHelpName: (state, action: PayloadAction<string>) => {
-      state.helpName = action.payload;
-    },
-    setHelpTabName: (state, action: PayloadAction<string>) => {
-      state.helpTabName = action.payload;
-    },
 
     setOverrideStyles: (
       state,
@@ -202,8 +192,6 @@ export const {
   setOverrideStyles,
   setAnonymousMode,
   resetSystem,
-  setHelpName,
-  setHelpTabName,
   setLocationPath,
   setDarkMode,
   setFilterBucket,

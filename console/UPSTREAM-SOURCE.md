@@ -83,9 +83,14 @@ IAM 管理（用户、组、策略、Access Key）与审计所需的部分，以
    `web-app/src` 下 8 个文件的修改、`screens/Console/License/` 9 个文件的删除，以及
    `screens/Console/HelpMenu.tsx` 的 `Documentation` tab 移除与自动选中逻辑重写
    （`systemSlice` 的 `helpTabName` 默认值随之由 `"docs"` 改为 `"video"`）。
-   连带清理 `screens/Console/helpTopics.json`：74 个页面键的 `docs` 段全部移除（281 条链接，
-   文件由 291,024 字节降至 174,527 字节），因该数据在 `Documentation` tab 移除后永不读取；
-   每个页面键仍保留 `blog` 与 `video` 段。`web-app/build/` 已按仓库既有命令重新生成并一同提交。
+   随后按用户要求把 `Video` 与 `Blog` 两个同性质外部内容 tab 一并移除，因三个 tab 全部消失后
+   帮助面板不再有任何内容，故整体删除上下文帮助特性：删除 `screens/Console/HelpMenu.tsx`、
+   `HelpItem.tsx`、`HelpMenu.types.ts`、`helpTopics.json`、`common/MoreLink.tsx` 五个文件；
+   `OBHeader.tsx` 与 `OBBrowserMain.tsx` 移除 `<HelpMenu />` 及其 `actions` prop；
+   `Login.tsx` 与 `AddBucketModal.tsx` 移除 `setHelpName` 的 effect；
+   `systemSlice.ts` 移除 `helpName`/`helpTabName` 两个字段、初值、两个 reducer 及其导出。
+   `react-markdown` 随之成为无引用依赖，已从 `web-app/package.json` 移除。
+   `web-app/build/` 已按仓库既有命令重新生成并一同提交。
 
 许可与凭证文件 `LICENSE`、`NOTICE`、`CREDITS`，生成器（`hack/`、`swagger.yml`、`.license.tmpl`），
 前端锁文件（`web-app/yarn.lock`、根 `yarn.lock`）以及预构建前端产物 `web-app/build/`

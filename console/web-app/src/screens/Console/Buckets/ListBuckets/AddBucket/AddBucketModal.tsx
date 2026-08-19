@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { Box, Button, FormLayout, Grid, ProgressBar } from "mds";
 import { AppState, useAppDispatch } from "../../../../../store";
 import { useSelector } from "react-redux";
-import { setErrorSnackMessage, setHelpName } from "../../../../../systemSlice";
+import { setErrorSnackMessage } from "../../../../../systemSlice";
 import TooltipWrapper from "../../../Common/TooltipWrapper/TooltipWrapper";
 import {
   resetForm,
@@ -123,11 +123,6 @@ const AddBucketModal = () => {
       navigate(goTo);
     }
   }, [navigateTo, navigate, dispatch]);
-
-  useEffect(() => {
-    dispatch(setHelpName("add_bucket"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <Fragment>

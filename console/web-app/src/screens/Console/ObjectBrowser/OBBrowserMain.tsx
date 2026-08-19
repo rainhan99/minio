@@ -32,12 +32,11 @@ import {
   permissionTooltipHelper,
 } from "../../../common/SecureComponent/permissions";
 import hasPermission from "../../../common/SecureComponent/accessControl";
-import { setErrorSnackMessage, setHelpName } from "../../../systemSlice";
+import { setErrorSnackMessage } from "../../../systemSlice";
 import { useAppDispatch } from "../../../store";
 import PageHeaderWrapper from "../Common/PageHeaderWrapper/PageHeaderWrapper";
 import { api } from "../../../api";
 import { errorToHandler } from "../../../api/errors";
-import HelpMenu from "../HelpMenu";
 import { setAddBucketOpen } from "../Buckets/ListBuckets/AddBucket/addBucketsSlice";
 
 const OBBrowserMain = () => {
@@ -77,13 +76,9 @@ const OBBrowserMain = () => {
     IAM_SCOPES.S3_ALL_LIST_BUCKET,
   ]);
 
-  useEffect(() => {
-    dispatch(setHelpName("object_browser"));
-  }, [dispatch]);
-
   return (
     <Fragment>
-      <PageHeaderWrapper label={"Object Browser"} actions={<HelpMenu />} />
+      <PageHeaderWrapper label={"Object Browser"} />
       <PageLayout>
         {loading && <ProgressBar />}
         {!loading && (
