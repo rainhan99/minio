@@ -76,7 +76,7 @@ const initialState: SystemState = {
   overrideStyles: null,
   anonymousMode: false,
   helpName: "help",
-  helpTabName: "docs",
+  helpTabName: "video",
   locationPath: "",
   darkMode: isDarkModeOn(),
   filterBucketList: "",

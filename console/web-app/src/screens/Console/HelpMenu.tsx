@@ -66,8 +66,6 @@ const HelpMenuContainer = styled.div(({ theme }) => ({
 const HelpMenu = () => {
   const helpTopics = require("../Console/helpTopics.json");
 
-  const [helpItems, setHelpItems] = useState<DocItem[]>([]);
-  const [headerDocs, setHeaderDocs] = useState<string | null>(null);
   const [helpItemsVideo, setHelpItemsVideo] = useState<DocItem[]>([]);
   const [headerVideo, setHeaderVideo] = useState<string | null>(null);
   const [helpItemsBlog, setHelpItemsBlog] = useState<DocItem[]>([]);
@@ -106,16 +104,9 @@ const HelpMenu = () => {
   useOutsideAlerter(wrapperRef);
 
   useEffect(() => {
-    let docsTotal = 0;
     let blogTotal = 0;
     let videoTotal = 0;
     if (helpTopics[systemHelpName]) {
-      if (helpTopics[systemHelpName]["docs"]) {
-        setHeaderDocs(helpTopics[systemHelpName]["docs"]["header"]);
-        setHelpItems(helpTopics[systemHelpName]["docs"]["links"]);
-        docsTotal = helpTopics[systemHelpName]["docs"]["links"].length;
-      }
-
       if (helpTopics[systemHelpName]["blog"]) {
         setHeaderBlog(helpTopics[systemHelpName]["blog"]["header"]);
         setHelpItemsBlog(helpTopics[systemHelpName]["blog"]["links"]);
@@ -128,41 +119,26 @@ const HelpMenu = () => {
         videoTotal = helpTopics[systemHelpName]["video"]["links"].length;
       }
 
-      let autoSelect = "docs";
+      let autoSelect =
+        videoTotal !== 0 || headerVideo !== null ? "video" : "blog";
       let hadToFlip = false;
-      // if no docs, eval video o blog
-      if (docsTotal === 0 && headerDocs === null && helpTabName === "docs") {
-        // if no blog, default video?
-        if (videoTotal !== 0 || headerVideo !== null) {
-          autoSelect = "video";
-        } else {
-          autoSelect = "blog";
-        }
-        hadToFlip = true;
-      }
+      // if the selected tab has no content, fall back to the other one
       if (videoTotal === 0 && headerVideo === null && helpTabName === "video") {
-        // if no blog, default video?
-        if (docsTotal !== 0 || headerDocs !== null) {
-          autoSelect = "docs";
-        } else {
-          autoSelect = "blog";
-        }
+        autoSelect = "blog";
         hadToFlip = true;
       }
       if (blogTotal === 0 && headerBlog === null && helpTabName === "blog") {
-        // if no blog, default video?
-        if (docsTotal !== 0 || headerDocs !== null) {
-          autoSelect = "docs";
-        } else {
-          autoSelect = "video";
-        }
+        autoSelect = "video";
+        hadToFlip = true;
+      }
+      // the docs tab no longer exists; recover from a stale selection
+      if (helpTabName !== "video" && helpTabName !== "blog") {
         hadToFlip = true;
       }
       if (hadToFlip) {
         dispatch(setHelpTabName(autoSelect));
       }
     } else {
-      setHelpItems(helpTopics["help"]["docs"]["links"]);
       setHelpItemsBlog([]);
       setHelpItemsVideo([]);
     }
@@ -172,36 +148,9 @@ const HelpMenu = () => {
     dispatch,
     helpTopics,
     headerBlog,
-    headerDocs,
     headerVideo,
   ]);
 
-  const helpContent = (
-    <Box className={"helpContainer"}>
-      {headerDocs && (
-        <div style={{ paddingLeft: 16, paddingRight: 16 }}>
-          <div>
-            <ReactMarkdown>{`${headerDocs}`}</ReactMarkdown>
-          </div>
-          <div style={{ borderBottom: "1px solid #dedede" }} />
-        </div>
-      )}
-      {helpItems &&
-        helpItems.map((aHelpItem, idx) => (
-          <Box className={"helpItemBlock"} key={`help-item-${aHelpItem}`}>
-            <HelpItem item={aHelpItem} displayImage={false} />
-          </Box>
-        ))}
-      <div style={{ padding: 16 }}>
-        <MoreLink
-          LeadingIcon={MinIOTierIcon}
-          text={"Visit MinIO Documentation"}
-          link={"https://docs.min.io/?ref=con"}
-          color={"#C5293F"}
-        />
-      </div>
-    </Box>
-  );
   const helpContentVideo = (
     <Box className={"helpContainer"}>
       {headerVideo && (
@@ -257,13 +206,6 @@ const HelpMenu = () => {
 
   const constructHMTabs = () => {
     const helpMenuElements: TabItemProps[] = [];
-
-    if (helpItems.length !== 0) {
-      helpMenuElements.push({
-        tabConfig: { label: "Documentation", id: "docs" },
-        content: helpContent,
-      });
-    }
 
     if (helpItemsVideo.length !== 0) {
       helpMenuElements.push({
