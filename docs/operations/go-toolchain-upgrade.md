@@ -156,7 +156,7 @@ Stream 失败发生在 `internal/grid/benchmark_test.go` 的 `st.Results()`，�
 
 | 功能 | 命令或工作流 | 证据位置 | 负责人 | 当前结果 |
 | --- | --- | --- | --- | --- |
-| S3 PUT/GET/list/delete | `mint` workflow；另用 `mc mb/cp/ls/rm` 做候选烟测 | CI artifact/变更单附件 | 发布负责人 | 未执行，阻断 |
+| S3 PUT/GET/list/delete | `mint` workflow；另用 SigV4 烟测做候选验证 | 见 7.1 部署记录 | 发布负责人 | 部分执行：候选二进制烟测通过；`mint` 套件未执行，仍阻断 |
 | Multipart | `mint` 大对象/multipart 用例 | CI artifact/变更单附件 | 存储测试负责人 | 未执行，阻断 |
 | TLS 与证书链 | TLS integration workflow；`mc admin info <tls-alias>` | CI artifact/握手日志 | 安全负责人 | 未执行，阻断 |
 | SSE-S3/SSE-KMS | KMS integration workflow 和加密对象读写 | CI artifact/KMS 审计 | 安全负责人 | 未执行，阻断 |
@@ -215,4 +215,56 @@ Forwarder 迁移后删除客户端自报的 `Forwarded`、`X-Forwarded-*` 和 `X
 任一健康检查失败、错误率异常或 SLO 超限时：停止继续扩散，恢复已备份的旧二进制和原配置，
 重启同一个 service，再重复健康检查并保存回滚证据。工具链升级不包含数据格式或数据库 schema
 变更，因此不以数据库回滚代替二进制回滚。
+
+## 7. 部署记录
+
+### 7.1 2026-08-19 部署 `71102ab97` 到 10.0.1.119
+
+**目标机实况（部署前只读预检）**：`debian-13-rh`，Linux 6.12.41 x86_64，单节点。服务由**用户级**
+systemd 管理（`/home/rain/.config/systemd/user/minio.service`，无 drop-in，`Linger=yes`，
+`Type=notify`、`Restart=always`、`SendSIGKILL=no`、`TimeoutStopSec=infinity`），
+`EnvironmentFile=/home/rain/.config/minio/minio.env`，
+`ExecStart=/home/rain/.local/bin/minio server /home/rain/.local/share/minio/data --address :9000 --console-address :9001`。
+本节所述"systemd"均指用户级单元，不存在系统级 minio 单元。
+
+| 项 | 旧 | 新 |
+| --- | --- | --- |
+| 版本 | `DEVELOPMENT.2026-08-17T05-40-42Z` | `DEVELOPMENT.2026-08-19T01-51-56Z` |
+| commit-id | `006e391975058e0b8a25c87c853c1fe25ee764ef` | `71102ab97b44dd98460920da643c83e0be70824e` |
+| Runtime | `go1.26.6 linux/amd64` | `go1.26.6 linux/amd64` |
+| 大小 / SHA-256 | 120,184,994 / `909f942c…4df4f` | 110,391,458 / `f920ed52…2c52` |
+
+**旧版本已是 `go1.26.6`**：它在 `006e39197`（当时 `go.mod` 仍为 `go 1.24.0`）上被更新的本地工具链
+编译，正是本设计第 1 节指出的漂移。因此本次部署**不引入 Go 运行时变更**；运行时差异集中在
+`internal/handlers/forwarder.go` 的转发头信任模型，而该路径（`globalForwarder` 的 bucket/DNS 转发与
+站点复制、`proxyRequest` 的对等节点代理）在单节点部署上不被走到。
+
+**构建**：`GOTOOLCHAIN=go1.26.6 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags kqueue -trimpath
+--ldflags "$(go run buildscripts/gen-ldflags.go)"`，工作区干净，严格 `verify-go-toolchain`（不带
+`-allow-modified`）退出码 0，`vcs.revision` 绑定发布提交且 `vcs.modified=false`。
+**注意**：裸 `go build` 不注入 `--ldflags`，二进制会自报 `DEVELOPMENT.GOGET`、丢失版本身份；
+发布候选必须带 `gen-ldflags.go` 的输出。
+
+**备份**（第 6 节五项，位于 `/home/rain/minio-deploy-backup/006e39197-20260819T020403Z/`）：
+旧二进制及其 `sha256`、unit 文件、`minio.env`、`systemctl show`/`status`、`journalctl` 200 行、
+旧版健康基线（`live=200 ready=200`）。旧二进制同时就地保留为 `/home/rain/.local/bin/minio.bak-006e39197`。
+
+**健康检查结果（全部通过）**：版本自报 `commit-id=71102ab97b44…`；`MainPID=644165` 单进程同时提供
+9000 与 9001（4 个监听全部属该 PID）；`live=200`、`ready=200`、`cluster=200`；`NRestarts=0`、
+`ActiveState=active`；日志无 panic、TLS、IAM、KMS 或 storage 初始化错误。
+
+**S3 烟测（PUT/GET/list/delete，SigV4 直签，凭据不出目标机）**：create bucket 200、PUT 200、
+GET 200 且内容逐字节一致、LIST 200 且含该 key、DELETE object 204、DELETE bucket 204，全部 PASS。
+
+**Console 验证**：`:9001` 返回 200，服务的主包 `main.d1b8ec8c.js` 中
+`name:"Documentation"`、`name:"License"`、`Visit MinIO Documentation`、`Visit MinIO Blog`、
+`label:"Video"`、`"/license"` 六个特征串均为 0。
+
+**仍未执行、仍阻断**：`mint` 套件、multipart、TLS 与证书链、SSE-S3/SSE-KMS、LDAP、OIDC、内部 grid
+benchmark、转发头与 `aws:SourceIp` 的真实拓扑验证、容器 CPU quota，以及第 5 节生产性能门禁。
+本次部署在这些门禁未通过的情况下经用户明确确认执行，不得据此认为上述项目已满足。
+
+**回滚方式**：`systemctl --user stop minio.service`；
+`cp /home/rain/.local/bin/minio.bak-006e39197 /home/rain/.local/bin/minio`；
+`systemctl --user start minio.service`；再重复上述健康检查。
 
