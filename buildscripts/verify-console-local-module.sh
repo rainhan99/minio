@@ -69,16 +69,24 @@ fi
 
 # Transfer artifacts must not leak into the vendored source.
 if [[ -d "$console_dir" ]]; then
-	leaked="$(grep -rIlE '/pkg/mod/|/private/tmp/|/var/folders/|^/Users/|[^a-zA-Z]/Users/[a-z]' \
-		"$console_dir" 2>/dev/null || true)"
-	if [[ -n "$leaked" ]]; then
-		fail "module cache or temporary directory paths leaked into console/: $(echo "$leaked" | tr '\n' ' ')"
-	fi
+	# Only inspect committed sources. Local build artifacts such as
+	# console/web-app/node_modules/ are git-ignored and must not be scanned.
+	tracked_count="$(git -C "$repo_root" ls-files -- console | wc -l | tr -d ' ')"
+	if [[ "$tracked_count" -eq 0 ]]; then
+		fail "no tracked files found under console/; the module does not appear to be committed"
+	else
+		leaked="$(git -C "$repo_root" ls-files -z -- console |
+			xargs -0 grep -IlE '/pkg/mod/|/private/tmp/|/var/folders/|/Users/[a-z]' 2>/dev/null || true)"
+		if [[ -n "$leaked" ]]; then
+			fail "module cache or temporary directory paths leaked into console/: $(echo "$leaked" | tr '\n' ' ')"
+		fi
 
-	# Module cache files are read-only; the embedded copy must be writable source.
-	readonly_files="$(find "$console_dir" -type f ! -perm -u+w -print -quit 2>/dev/null || true)"
-	if [[ -n "$readonly_files" ]]; then
-		fail "console/ contains read-only files carried over from the module cache: $readonly_files"
+		# Module cache files are read-only; the embedded copy must be writable source.
+		readonly_files="$(find "$console_dir" -name node_modules -prune -o -name .yarn -prune -o \
+			-type f ! -perm -u+w -print 2>/dev/null | head -1)"
+		if [[ -n "$readonly_files" ]]; then
+			fail "console/ contains read-only files carried over from the module cache: $readonly_files"
+		fi
 	fi
 fi
 
