@@ -79,6 +79,14 @@ IAM 管理（用户、组、策略、Access Key）与审计所需的部分，以
    被实际消费的文件）；`web-app/yarn.lock` 中 mds 条目改为 `file:` 解析并对 `luxon` 执行 `yarn dedupe`。
    `console/mds/` 本身内容与上游提交逐字节一致。详见 `console/mds/UPSTREAM-SOURCE.md`。
 
+6. 移除 Console 侧边栏的 `Documentation` 与 `License` 入口及其全部关联实现（用户需求）。涉及
+   `web-app/src` 下 8 个文件的修改、`screens/Console/License/` 9 个文件的删除，以及
+   `screens/Console/HelpMenu.tsx` 的 `Documentation` tab 移除与自动选中逻辑重写
+   （`systemSlice` 的 `helpTabName` 默认值随之由 `"docs"` 改为 `"video"`）。
+   连带清理 `screens/Console/helpTopics.json`：74 个页面键的 `docs` 段全部移除（281 条链接，
+   文件由 291,024 字节降至 174,527 字节），因该数据在 `Documentation` tab 移除后永不读取；
+   每个页面键仍保留 `blog` 与 `video` 段。`web-app/build/` 已按仓库既有命令重新生成并一同提交。
+
 许可与凭证文件 `LICENSE`、`NOTICE`、`CREDITS`，生成器（`hack/`、`swagger.yml`、`.license.tmpl`），
 前端锁文件（`web-app/yarn.lock`、根 `yarn.lock`）以及预构建前端产物 `web-app/build/`
 （被 `web-app/assets.go` 的 `//go:embed build/*` 使用）均已完整保留。
